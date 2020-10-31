@@ -9,7 +9,7 @@ use std::process::Command;
 fn main() {
     if pkg_config::probe_library("mysqlclient").is_ok() {
         // pkg_config did everything for us
-        return
+        return;
     } else if try_vcpkg() {
         // vcpkg did everything for us
         return;
@@ -19,9 +19,9 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", path);
     }
 
-    if cfg!(all(windows, target_env="gnu")) {
+    if cfg!(all(windows, target_env = "gnu")) {
         println!("cargo:rustc-link-lib=dylib=mysql");
-    } else if cfg!(all(windows, target_env="msvc")) {
+    } else if cfg!(all(windows, target_env = "msvc")) {
         println!("cargo:rustc-link-lib=static=mysqlclient");
     } else {
         println!("cargo:rustc-link-lib=mysqlclient");
@@ -41,7 +41,14 @@ fn mysql_config_variable(var_name: &str) -> Option<String> {
 
 #[cfg(target_env = "msvc")]
 fn try_vcpkg() -> bool {
-    vcpkg::find_package("libmysql").is_ok()
+    match vcpkg::Config::new().copy_dlls(true).find_package("libmysql") {
+        Ok(_) => {
+            // Additionally link crypt32, else there will be missing functions
+            println!("cargo:rustc-link-lib=crypt32");
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 #[cfg(not(target_env = "msvc"))]
